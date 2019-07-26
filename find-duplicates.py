@@ -1,0 +1,191 @@
+#!/usr/bin/env python3 
+# -*- coding: utf-8 -*-
+"""
+Date: 26 June 2019
+
+@author: V V N Priyanka
+
+File: 
+	find-duplicate-files.py
+		
+Usage:
+	find-duplicate-files.py db file1 file2 file3 ...
+
+Description:
+	For each file specified on the arg list, determine whether the file is found in db.
+
+Input:
+	db and file list
+
+Output:
+        All output files are created in an output directory, whose name is out_dir_time, for example: out_dir_1560158423.1453307
+	The following files are generated:
+		unique-files.txt
+		duplicate-files.txt
+
+"""
+
+import os
+import re
+import sys
+import time		# used for creating an output dir with a unique name using time.time() which returns float representig the current time
+import getopt		# command line option processing
+import sqlite3		# for creating sqlite3 database of md5, sha1, etc. hashes
+import hashlib		# md5, sha1, etc. hashing
+
+OUT_DIR_PREFIX = "out_dir_"
+DUPLICATES = "duplicate-files.txt"
+UNIQUES = "unique-files.txt"
+
+db = ''
+file_list = []
+log_file = "log.txt"
+log_fd = ''
+
+# Every sqlite db contains the following string as first 16 characters. (Note: \x00 is null byte)
+SQLite_MAGIC_STRING = b"SQLite format 3\x00"
+
+########################################################
+# Print the string to stdout and write to log.txt file #
+########################################################
+def print_and_log(*s):
+  global log_fd
+  for i in s:
+    print(i,end='')
+    log_fd.write(str(i))
+  print("")
+  log_fd.write("\n")
+
+############################
+# Get command line options #
+############################
+def get_opts():
+    global db, file_list
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "h", [])
+    except getopt.GetoptError as err:
+        # print help information and exit:"
+        print(err)  # will print something like "option -a not recognized"
+        usage()
+		
+    for o, a in opts:
+      if o == "-h":
+        usage()
+      else:
+        assert False, "unhandled option"
+
+    if len(args) == 0:
+      usage()
+
+    db = args[0]
+    file_list = args[1:]
+
+    if not os.path.isfile (db):
+      print("No such file: ", db)
+      usage()
+
+    if not check_sql_db(db):
+      print("Not a sqlite3 db file: ", db1)
+      usage()
+
+
+########################################################################################################
+# Check whether a given file a SQL Database file                                                       #
+# A SQL Database file starts with the 16-byte string: "SQLite format 3\x00" (here \x00 is a null byte) #
+########################################################################################################
+def check_sql_db(dbfile):
+  f = open(dbfile, "rb")
+  magic = f.read(16)
+  if (magic == SQLite_MAGIC_STRING):
+    return True
+  else:
+    return False
+
+
+#################  
+# Display Usage #
+#################
+def usage():
+    print("Usage: " + os.path.basename(sys.argv[0]) + " [-h] db file1 file2 ...")
+    sys.exit(2)		
+
+
+#################################################################################################################
+# Larger block_size for efficiency                                                                              #
+# Open file in 'rb' mode for 'reading in binary mode'.  No translations beween "\n", "\r", "\n\r" translations. #
+# Returns hexdigest which is a 32-byte ascii string representing 32-hex digits of the md5 hash                  #
+#################################################################################################################
+def generate_file_hash(f, block_size=2**20):
+        hash_func = getattr(hashlib, "sha256")
+        m = hash_func()
+        with open( f, "rb" ) as f1:
+            while True:
+                buf = f1.read(block_size)
+                if not buf:
+                    break
+                m.update(buf)
+        return m.hexdigest()
+
+
+###############################################################
+# Files unique to db2 (that is, files in db2, but not in db1) #
+###############################################################
+def find_in_db(f):
+
+  global uniques, duplicates
+ 
+  m = generate_file_hash(f)
+
+  sql_stmt = 'SELECT sha256, path FROM db.hash_table WHERE sha256 IS "' + m + '";'
+
+  cur.execute(sql_stmt)
+  fl = open(out_dir + "/" + DUPLICATES, "w")
+
+  # One can use fetchall instead of fetchone. But if the return string is very large, how will python handle it?
+  row = cur.fetchone()
+  if not row:
+    uniques.write(f + "\n")
+  else:
+    duplicates.write("File: \n")
+    duplicates.write(m + "|" + f + "\n")
+    duplicates.write("Duplicates:\n")
+    while row:
+      line = row[0]+'|'+row[1]+'\n'
+      duplicates.write(line)
+      row = cur.fetchone()
+    duplicates.write("\n\n")
+
+########
+# Main #
+########
+
+get_opts()
+
+# Keep all output files in a sigle dir, instead of creating in the current directory
+# The name of the output dir is generated by concatening the OUT_DIR_PREFIX with time.time()
+# A sample output of time.time() is "1559930379.3724217" (float)
+# So a sample output dir name is: out_dir_1559930379.3724217
+# The default mode of out dir is 777
+out_dir = OUT_DIR_PREFIX + str(time.time())
+os.mkdir(out_dir)
+print("Output directory: ", out_dir)
+
+duplicates = open(os.path.join(out_dir, DUPLICATES), "w")
+uniques = open(os.path.join(out_dir, UNIQUES), "w")
+
+# Create a temp db, just for the sake of connection so that we can attach actual dbs to this connection
+con = sqlite3.connect("")
+cur = con.cursor()
+
+# Attach the new db
+cur.execute("ATTACH " + '"' + db + '"' + " AS db;")
+
+for f in file_list:
+  if not os.path.isfile(f):
+    print("Not a file:", f)
+  else:
+    find_in_db(f)
+
+duplicates.close()
+uniques.close()
+
