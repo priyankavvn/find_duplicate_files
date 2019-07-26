@@ -4,9 +4,8 @@
 These utilities are written on python use sqlite3 database to compute and store hashes (md5/sha256/...) for each file in a directory tree.
 This hash database is, then used, to find duplicate files within a folder or between two folders. Same hash database is also used by verify_integrity.py to verify the integrity of files.
 
-dirhash.py: 
-	Description:
-		Recursively traverse a directory and create an sqlite3 database of md5/sha256/etc hashes fo each file
+**_dirhash.py_**:  
+Recursively traverse a directory and create an sqlite3 database of md5/sha256/etc hashes fo each file
 
 	Usage:
 	dirhash.py [-h <hashing algorithm>] -r <root directory> [-d <database file>] [-t <text file>]
@@ -17,35 +16,31 @@ dirhash.py:
 			-t defaults to <root directory>.txt
 
 
-find-duplicate-files-in-db:
-	Description:
-		Find duplicate files within hash database. This is equivalent to finding duplicate files within the folder for which the hash database was created.
+**_find-duplicate-files-in-db**_:  
+Find duplicate files within hash database. This is equivalent to finding duplicate files within the folder for which the hash database was created.
 
 	Usage:
 		find-duplicate-files.py [-h] <hash db>
 
-find-duplicates.py:
-	Description:
-		Find which of the files given on command line are duplicated within the hash database.
+**_find-duplicates.py**_:  
+Find which of the files given on command line are duplicated within the hash database.
 	
 	Usage:
 		find-duplicate-files.py hash-db file1 file2 file3 ...
 
-find-common-unique-files.py:
-	Description:
-		Find list of common and unique files within the two given hash databases.
-		The output files will be created inside a directory ("out_....") within the current directory
-		The following files are generated:
-			unique_to_<db1>.txt
-			unique_to_<db2>.txt
-			common_to_<db1>_and_<db2>.txt
+**_find-common-unique-files.py**_:  
+	Find list of common and unique files within the two given hash databases.  
+	The output files will be created inside a directory ("out_....") within the current directory.  
+	The following files are generated:  
+	unique_to_<db1>.txt  
+	unique_to_<db2>.txt  
+	common_to_<db1>_and_<db2>.txt  
 
 	Usage:
 		find-common-unique-files.py [-h] db1 db2
 
-verify-integrity.py:
-	Description:
-		Verify the integrity of files within a folder with respect to the hash database.
+**_verify-integrity.py**_:  
+Verify the integrity of files within a folder with respect to the hash database.
 
 	Usage:
 		verif-integrity.py -h -d <sqlite3 db> -f <files folder>
